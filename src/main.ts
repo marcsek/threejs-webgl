@@ -18,7 +18,6 @@ const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.listenToKeyEvents(window);
 orbit.enableDamping = true;
 
-//TODO: toto ako generator patern ?
 gui.add<{ level: LevelID }>({ level: 'Test' }, 'level', levelIDS).onChange(e => {
   level.destroy();
   level = LevelGenerator.createLevel(e, levelFolder);
