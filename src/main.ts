@@ -3,11 +3,15 @@ import dat from 'dat.gui';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import Stats from 'stats.js';
 import { LevelGenerator, LevelID, levelIDS } from './LevelGenerator';
+import { Level } from './Level';
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.setClearColor(0x0f0f0f);
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.CineonToneMapping;
+
+renderer.setClearColor(0xd1b26b);
 document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -18,19 +22,21 @@ const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.listenToKeyEvents(window);
 orbit.enableDamping = true;
 
-gui.add<{ level: LevelID }>({ level: 'Test' }, 'level', levelIDS).onChange(e => {
+const loaderDiv = document.getElementById('loader');
+const setLoading = (s: boolean) => (loaderDiv ? (loaderDiv.style.display = s ? 'none' : 'box') : null);
+
+gui.add<{ level: LevelID }>({ level: 'Terrain' }, 'level', levelIDS).onChange(e => {
   level.destroy();
   level = LevelGenerator.createLevel(e, levelFolder);
-  level.init();
+  loadLevel(level);
 });
 
 const levelFolder = gui.addFolder('Level atributes');
 levelFolder.open();
 
-let level = LevelGenerator.createLevel('Test', levelFolder);
-level.init();
-
-camera.position.set(-12, 9, 16);
+let level = LevelGenerator.createLevel('Terrain', levelFolder);
+loadLevel(level);
+camera.position.set(0, 16, 0);
 
 const stats = new Stats();
 stats.showPanel(0);
@@ -58,3 +64,11 @@ window.addEventListener(
   },
   false
 );
+
+function loadLevel(level: Level) {
+  setTimeout(() => {
+    setLoading(true);
+    level.init();
+    setLoading(false);
+  });
+}

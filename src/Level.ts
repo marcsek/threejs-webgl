@@ -10,6 +10,6 @@ export abstract class Level {
   }
 
   abstract update(time: number): void;
-  abstract init(): void;
+  abstract init(callback?: () => number): void;
   abstract destroy(): void;
 }

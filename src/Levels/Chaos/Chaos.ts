@@ -8,6 +8,7 @@ export class Chaos extends Level {
   slider: GUIController | undefined;
   constructor(gui: dat.GUI) {
     super(gui);
+
     this.world = new World();
   }
 

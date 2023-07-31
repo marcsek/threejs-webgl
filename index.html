@@ -6,10 +6,26 @@
     <style>
       body {
         margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
       }
     </style>
   </head>
   <body>
     <script type="module" src="/src/main.ts"></script>
+    <div
+      id="loader"
+      style="
+        border-radius: 1rem;
+        padding-inline: 1.5rem;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;
+        background-color: rgba(31, 31, 31, 0.884);
+      "
+    >
+      <h1 style="color: #cccccc">Loading</h1>
+    </div>
   </body>
 </html>

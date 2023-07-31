@@ -1,8 +1,9 @@
 import { Level } from './Level';
 import { Chaos } from './Levels/Chaos/Chaos';
-import { Test } from './Levels/Test';
+import { Noise } from './Levels/Noise/Noise';
+import { Terrain } from './Levels/Terrain/Terrain';
 
-export const levelIDS = ['Chaos', 'Test'] as const;
+export const levelIDS = ['Chaos', 'Noise', 'Terrain'] as const;
 export type LevelID = (typeof levelIDS)[number];
 
 export class LevelGenerator {
@@ -10,8 +11,10 @@ export class LevelGenerator {
     switch (id) {
       case 'Chaos':
         return new Chaos(gui);
-      case 'Test':
-        return new Test(gui);
+      case 'Noise':
+        return new Noise(gui);
+      case 'Terrain':
+        return new Terrain(gui);
       default:
         return new Chaos(gui);
     }
