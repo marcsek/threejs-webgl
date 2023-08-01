@@ -5,52 +5,74 @@ import vertexShader from './shaders/vertex.glsl';
 import { GUIController } from 'dat.gui';
 import { noise as pNoise, noiseDetail, noiseSeed, resetPerlin } from '../../NoiseFunctions/Perlin';
 import { MeshManager } from './MeshManager';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
-const MESH_SIZE = 32;
+const MESH_SIZE = 64;
 const MAX_HEIGHT = 10 ** 1.25;
 
 export class Terrain extends Level {
+  pmrem: THREE.PMREMGenerator;
   meshManager: MeshManager;
   slider: GUIController;
 
-  constructor(gui: dat.GUI) {
+  constructor(gui: dat.GUI, pmrem: THREE.PMREMGenerator) {
     super(gui);
 
+    this.pmrem = pmrem;
     this.meshManager = new MeshManager();
     this.slider = this.gui.add({ scale: 2 }, 'scale', 20, 15);
   }
 
   async init() {
-    const pointLight = new THREE.PointLight(new THREE.Color('#fcc168').convertLinearToSRGB(), 0.8, 200);
+    const sunColor = new THREE.Color('#ffcb8e').convertSRGBToLinear();
+    const pointLight = new THREE.PointLight(sunColor, 0.8, 200);
+    const ambientLight = new THREE.AmbientLight(sunColor, 0.01);
     pointLight.position.set(10, 20, 10);
     pointLight.castShadow = true;
     pointLight.shadow.mapSize.width = 1024;
     pointLight.shadow.mapSize.height = 1024;
     pointLight.shadow.camera.near = 0.5;
     pointLight.shadow.camera.far = 500;
+    this.scene.add(ambientLight, pointLight);
 
-    this.scene.add(pointLight, new THREE.AmbientLight(0xffc14d, 0.05));
+    const envMapTexture = await new RGBELoader().setDataType(THREE.FloatType).loadAsync('/src/Levels/Terrain/assets/envmap.hdr');
+    const envMap = this.pmrem.fromEquirectangular(envMapTexture).texture;
 
     const textureLoader = new THREE.TextureLoader();
-
     const stone = textureLoader.load('/src/Levels/Terrain/assets/stone.png');
     const sand = textureLoader.load('/src/Levels/Terrain/assets/sand.jpg');
     const grass = textureLoader.load('/src/Levels/Terrain/assets/grass.jpg');
     const dirt = textureLoader.load('/src/Levels/Terrain/assets/dirt.png');
     const dirt2 = textureLoader.load('/src/Levels/Terrain/assets/dirt2.jpg');
+    const water = textureLoader.load('/src/Levels/Terrain/assets/water.jpg');
 
     this.meshManager.setMaterials([
-      { key: 'stone', material: new THREE.MeshPhysicalMaterial({ map: stone, flatShading: true }) },
-      { key: 'sand', material: new THREE.MeshPhysicalMaterial({ map: sand, flatShading: true }) },
-      { key: 'grass', material: new THREE.MeshPhysicalMaterial({ map: grass, flatShading: true }) },
-      { key: 'dirt', material: new THREE.MeshPhysicalMaterial({ map: dirt, flatShading: true }) },
-      { key: 'dirt2', material: new THREE.MeshPhysicalMaterial({ map: dirt2, flatShading: true }) },
+      { key: 'stone', material: new THREE.MeshPhysicalMaterial({ map: stone, flatShading: true, envMap, envMapIntensity: 0.135 }) },
+      { key: 'sand', material: new THREE.MeshPhysicalMaterial({ map: sand, flatShading: true, envMap, envMapIntensity: 0.135 }) },
+      { key: 'grass', material: new THREE.MeshPhysicalMaterial({ map: grass, flatShading: true, envMap, envMapIntensity: 0.135 }) },
+      { key: 'dirt', material: new THREE.MeshPhysicalMaterial({ map: dirt, flatShading: true, envMap, envMapIntensity: 0.135 }) },
+      { key: 'dirt2', material: new THREE.MeshPhysicalMaterial({ map: dirt2, flatShading: true, envMap, envMapIntensity: 0.135 }) },
     ]);
 
-    const tileToPos = (tile: THREE.Vec2): THREE.Vector2 => new THREE.Vector2((tile.x + (tile.y % 2) * 0.5) * 1.77, tile.y * 1.535);
+    const waterGeo = new THREE.CylinderGeometry(MESH_SIZE / 2 + 1, MESH_SIZE / 2 + 1, MAX_HEIGHT * 0.1, 50);
+    const waterMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#55aaff').convertSRGBToLinear().multiplyScalar(3),
+      envMap,
+      ior: 1.4,
+      transmission: 1,
+      transparent: true,
+      thickness: 1.5,
+      envMapIntensity: 0.2,
+      roughness: 1,
+      metalness: 0.025,
+      metalnessMap: water,
+      roughnessMap: water,
+    });
+    const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+    waterMesh.position.set(0, MAX_HEIGHT * 0.05, 0);
+    waterMesh.receiveShadow = true;
 
     noiseDetail(8, 0.5);
-
     for (let y = -MESH_SIZE / 2; y <= MESH_SIZE / 2; y++) {
       for (let x = -MESH_SIZE / 2; x <= MESH_SIZE / 2; x++) {
         const position = tileToPos({ x, y });
@@ -61,11 +83,11 @@ export class Terrain extends Level {
 
         const height = noise / 10;
         const newHex = this.generateHexagon(height, position);
-        if (height < MAX_HEIGHT * 0.1) {
+        if (height < MAX_HEIGHT * 0.15) {
           this.meshManager.addGeometry('sand', newHex);
-        } else if (height < MAX_HEIGHT * 0.2) {
+        } else if (height < MAX_HEIGHT * 0.25) {
           this.meshManager.addGeometry('grass', newHex);
-        } else if (height < MAX_HEIGHT * 0.3) {
+        } else if (height < MAX_HEIGHT * 0.4) {
           this.meshManager.addGeometry('dirt', newHex);
         } else if (height < MAX_HEIGHT * 0.5) {
           this.meshManager.addGeometry('dirt2', newHex);
@@ -85,6 +107,7 @@ export class Terrain extends Level {
     });
 
     this.scene.add(...meshes);
+    this.scene.add(waterMesh);
   }
 
   update(time: number): void {
@@ -105,3 +128,5 @@ export class Terrain extends Level {
     return geo;
   }
 }
+
+const tileToPos = (tile: THREE.Vec2): THREE.Vector2 => new THREE.Vector2((tile.x + (tile.y % 2) * 0.5) * 1.77, tile.y * 1.535);

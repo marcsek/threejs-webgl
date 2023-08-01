@@ -10,7 +10,6 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.CineonToneMapping;
-
 renderer.setClearColor(0xd1b26b);
 document.body.appendChild(renderer.domElement);
 
@@ -22,19 +21,21 @@ const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.listenToKeyEvents(window);
 orbit.enableDamping = true;
 
+const pmrem = new THREE.PMREMGenerator(renderer);
+
 const loaderDiv = document.getElementById('loader');
-const setLoading = (s: boolean) => (loaderDiv ? (loaderDiv.style.display = s ? 'none' : 'box') : null);
+const setLoading = (s: boolean) => (loaderDiv!.style.display = !s ? 'none' : '');
 
 gui.add<{ level: LevelID }>({ level: 'Terrain' }, 'level', levelIDS).onChange(e => {
   level.destroy();
-  level = LevelGenerator.createLevel(e, levelFolder);
+  level = LevelGenerator.createLevel(e, levelFolder, pmrem);
   loadLevel(level);
 });
 
-const levelFolder = gui.addFolder('Level atributes');
+const levelFolder = gui.addFolder('Level attributes');
 levelFolder.open();
 
-let level = LevelGenerator.createLevel('Terrain', levelFolder);
+let level = LevelGenerator.createLevel('Terrain', levelFolder, pmrem);
 loadLevel(level);
 camera.position.set(0, 16, 0);
 
@@ -66,9 +67,7 @@ window.addEventListener(
 );
 
 function loadLevel(level: Level) {
-  setTimeout(() => {
-    setLoading(true);
-    level.init();
-    setLoading(false);
-  });
+  setLoading(true);
+  level.init();
+  setLoading(false);
 }
