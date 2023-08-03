@@ -31,4 +31,15 @@ export class MeshManager {
       return newMesh;
     });
   }
+
+  overrideSceneMeshMaterial(...scenes: THREE.Group[]) {
+    scenes.forEach(scene =>
+      scene.traverse(obj => {
+        if (obj instanceof THREE.Mesh) {
+          const foundMat = this.meshes.get(obj.name);
+          if (foundMat) obj.material = foundMat.material;
+        }
+      })
+    );
+  }
 }
