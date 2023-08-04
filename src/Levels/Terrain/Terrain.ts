@@ -16,19 +16,22 @@ export class Terrain extends Level {
   pmrem: THREE.PMREMGenerator;
   meshManager: MeshManager;
   slider: GUIController;
-  sunPivot: THREE.Object3D;
+  centerPivot: THREE.Object3D;
+  ambient: THREE.AmbientLight;
 
   constructor(gui: dat.GUI, pmrem: THREE.PMREMGenerator) {
     super(gui);
 
     this.pmrem = pmrem;
     this.meshManager = new MeshManager();
-    this.sunPivot = new THREE.Object3D();
+    this.centerPivot = new THREE.Object3D();
     this.slider = this.gui.add({ scale: 2 }, 'scale', 20, 15);
+    this.ambient = new THREE.AmbientLight();
   }
 
   async init() {
     const sunColor = new THREE.Color('#FDB813');
+    const moonColor = new THREE.Color('#f5e38a');
     const sunGeo = new THREE.SphereGeometry(1, 20, 20);
     const sunMat = new THREE.MeshStandardMaterial({
       toneMapped: false,
@@ -37,16 +40,16 @@ export class Terrain extends Level {
       emissiveIntensity: 10,
     });
     const sunMesh = new THREE.Mesh(sunGeo, sunMat);
-    const pointLight = new THREE.PointLight(sunColor.convertSRGBToLinear(), 0.9, 200);
-    pointLight.add(sunMesh);
-    pointLight.position.set(40, 0, 0);
-    pointLight.castShadow = true;
-    pointLight.shadow.mapSize = new THREE.Vector2(1024, 1024);
-    pointLight.shadow.camera.near = 10;
-    pointLight.shadow.camera.far = 500;
+    const sunLight = new THREE.PointLight(sunColor.convertSRGBToLinear().multiplyScalar(1.15), 0.9, 200);
+    sunLight.add(sunMesh);
+    //pointLight.position.set(10, 20, 10);
+    sunLight.position.set(40, 0, 0);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize = new THREE.Vector2(1024, 1024);
+    sunLight.shadow.camera.near = 10;
+    sunLight.shadow.camera.far = 500;
 
-    this.sunPivot.add(pointLight);
-    this.scene.add(this.sunPivot);
+    this.centerPivot.add(sunLight);
 
     const envMapTexture = await new RGBELoader().setDataType(THREE.FloatType).loadAsync('/src/Levels/Terrain/assets/envmap.hdr');
     const envMap = this.pmrem.fromEquirectangular(envMapTexture).texture;
@@ -58,19 +61,54 @@ export class Terrain extends Level {
     const dirt = textureLoader.load('/src/Levels/Terrain/assets/dirt.png');
     const dirt2 = textureLoader.load('/src/Levels/Terrain/assets/dirt2.jpg');
     const water = textureLoader.load('/src/Levels/Terrain/assets/water.jpg');
+    const moonTex = textureLoader.load('/src/Levels/Terrain/assets/MoonPls.png');
+    const moonEmissive = textureLoader.load('/src/Levels/Terrain/assets/MoonEmissive.png');
+    moonEmissive.flipY = false;
+    moonTex.flipY = false;
 
     this.meshManager.setMaterials([
-      { key: 'stone', material: new THREE.MeshStandardMaterial({ map: stone, flatShading: true, envMapIntensity: 0.135 }) },
-      { key: 'sand', material: new THREE.MeshStandardMaterial({ map: sand, flatShading: true, envMapIntensity: 0.135 }) },
-      { key: 'grass', material: new THREE.MeshStandardMaterial({ map: grass, flatShading: true, envMapIntensity: 0.135 }) },
-      { key: 'dirt', material: new THREE.MeshStandardMaterial({ map: dirt, flatShading: true, envMapIntensity: 0.135 }) },
-      { key: 'dirt2', material: new THREE.MeshStandardMaterial({ map: dirt2, flatShading: true, envMapIntensity: 0.135 }) },
-      { key: 'Leaves', material: new THREE.MeshStandardMaterial({ map: dirt, flatShading: true, envMapIntensity: 0.135 }) },
-      { key: 'Base', material: new THREE.MeshStandardMaterial({ map: grass, flatShading: true, envMapIntensity: 0.135 }) },
+      { key: 'stone', material: new THREE.MeshStandardMaterial({ map: stone, flatShading: true, envMapIntensity: 0.05 }) },
+      { key: 'sand', material: new THREE.MeshStandardMaterial({ map: sand, flatShading: true, envMapIntensity: 0.05 }) },
+      { key: 'grass', material: new THREE.MeshStandardMaterial({ map: grass, flatShading: true, envMapIntensity: 0.05 }) },
+      { key: 'dirt', material: new THREE.MeshStandardMaterial({ map: dirt, flatShading: true, envMapIntensity: 0.05 }) },
+      { key: 'dirt2', material: new THREE.MeshStandardMaterial({ map: dirt2, flatShading: true, envMapIntensity: 0.05 }) },
+      { key: 'Leaves', material: new THREE.MeshStandardMaterial({ map: dirt, flatShading: true, envMapIntensity: 0.05 }) },
+      { key: 'Base', material: new THREE.MeshStandardMaterial({ map: grass, flatShading: true, envMapIntensity: 0.05 }) },
+      {
+        key: 'Bush',
+        material: new THREE.MeshStandardMaterial({ color: 0xc46200, flatShading: true, envMapIntensity: 0.05, roughness: 1 }),
+      },
+      {
+        key: 'Sphere',
+        material: new THREE.MeshStandardMaterial({
+          map: moonTex,
+          toneMapped: false,
+          emissive: 0xf5e38a,
+          emissiveIntensity: 3,
+          emissiveMap: moonEmissive,
+        }),
+      },
     ]);
 
-    const treeParadigm = await loadModelHelper('/src/Levels/Terrain/assets/strom.glb', 0.5, true);
+    const moon = await loadModelHelper('/src/Levels/Terrain/assets/moon.glb', 1, false);
+    const moonLight = new THREE.PointLight(moonColor.convertSRGBToLinear(), 0.1, 200);
+    moonLight.add(moon);
+    moonLight.position.set(-40, 0, 0);
+    moonLight.castShadow = true;
+    moonLight.shadow.mapSize = new THREE.Vector2(1024, 1024);
+    moonLight.shadow.camera.near = 10;
+    moonLight.shadow.camera.far = 500;
+    this.meshManager.overrideSceneMeshMaterial(moon);
+    this.centerPivot.add(moonLight);
+    this.ambient = new THREE.AmbientLight(0xffffff, 0.05);
+
+    this.scene.add(this.centerPivot, this.ambient);
+
+    const treeParadigm = await loadModelHelper('/src/Levels/Terrain/assets/strom.glb', 0.35, true);
     this.meshManager.overrideSceneMeshMaterial(treeParadigm);
+
+    const bushParadigm = await loadModelHelper('/src/Levels/Terrain/assets/krik.glb', 0.35, true);
+    this.meshManager.overrideSceneMeshMaterial(bushParadigm);
 
     const waterGeo = new THREE.CylinderGeometry(MESH_SIZE / 2 + 1, MESH_SIZE / 2 + 1, MAX_HEIGHT * 0.1, 50);
     const waterMat = new THREE.MeshPhysicalMaterial({
@@ -90,7 +128,7 @@ export class Terrain extends Level {
     waterMesh.position.set(0, MAX_HEIGHT * 0.05, 0);
     waterMesh.receiveShadow = true;
 
-    generateWorld(treeParadigm, this.meshManager, this.scene);
+    generateWorld(treeParadigm, bushParadigm, this.meshManager, this.scene);
 
     const meshes = this.meshManager.generateMeshes(mesh => {
       mesh.castShadow = true;
@@ -104,10 +142,11 @@ export class Terrain extends Level {
   }
 
   update(time: number): void {
-    const speed = 2;
+    const speed = 4;
     const increment = speed * (time / 10000);
 
-    this.sunPivot.rotation.z = wrap(increment / 4, 0, 1) * Math.PI * 2;
+    this.ambient.intensity = clamp(0, 1, oscilate(increment + 1, -1, 1)) * 0.08;
+    this.centerPivot.rotation.z = wrap(increment / 4, 0, 1) * Math.PI * 2;
     this.scene.background = new THREE.Color().lerpColors(NIGHT_COLOR, DAY_COLOR, clamp(0, 1, oscilate(increment + 1, -1, 1)));
   }
 
@@ -117,7 +156,7 @@ export class Terrain extends Level {
   }
 }
 
-const generateWorld = (treeParadigm: THREE.Group, meshManager: MeshManager, scene: THREE.Scene) => {
+const generateWorld = (treeParadigm: THREE.Group, bushParadigm: THREE.Group, meshManager: MeshManager, scene: THREE.Scene) => {
   noiseDetail(8, 0.5);
   for (let y = -MESH_SIZE / 2; y <= MESH_SIZE / 2; y++) {
     for (let x = -MESH_SIZE / 2; x <= MESH_SIZE / 2; x++) {
@@ -135,13 +174,17 @@ const generateWorld = (treeParadigm: THREE.Group, meshManager: MeshManager, scen
       } else if (height < MAX_HEIGHT * 0.25) {
         meshManager.addGeometry('grass', newHex);
         if (Math.random() < 0.05) {
-          const newTree = generateTree(new THREE.Vector3(position.x, height, position.y), treeParadigm);
+          const newTree = generateModel(new THREE.Vector3(position.x, height, position.y), treeParadigm);
           scene.add(newTree);
         }
       } else if (height < MAX_HEIGHT * 0.4) {
         meshManager.addGeometry('dirt', newHex);
       } else if (height < MAX_HEIGHT * 0.5) {
         meshManager.addGeometry('dirt2', newHex);
+        if (Math.random() < 0.1) {
+          const newBush = generateModel(new THREE.Vector3(position.x, height, position.y), bushParadigm);
+          scene.add(newBush);
+        }
       } else {
         meshManager.addGeometry('stone', newHex);
       }
@@ -150,10 +193,10 @@ const generateWorld = (treeParadigm: THREE.Group, meshManager: MeshManager, scen
   resetPerlin();
 };
 
-const generateTree = (position: THREE.Vector3, treeParadigm: THREE.Group): THREE.Group => {
-  const tree = treeParadigm.clone();
-  tree.position.set(position.x, position.y, position.z);
-  return tree;
+const generateModel = (position: THREE.Vector3, modelParadigm: THREE.Group): THREE.Group => {
+  const model = modelParadigm.clone();
+  model.position.set(position.x, position.y, position.z);
+  return model;
 };
 
 const generateHexagon = (height: number, position: THREE.Vec2) => {
