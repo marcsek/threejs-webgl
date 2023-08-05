@@ -66,6 +66,7 @@ export class Terrain extends Level {
     moonEmissive.flipY = false;
     moonTex.flipY = false;
 
+    const betterMaterial: THREE.MeshStandardMaterialParameters = { toneMapped: false };
     this.meshManager.setMaterials([
       { key: 'stone', material: new THREE.MeshStandardMaterial({ map: stone, flatShading: true, envMapIntensity: 0.05 }) },
       { key: 'sand', material: new THREE.MeshStandardMaterial({ map: sand, flatShading: true, envMapIntensity: 0.05 }) },
@@ -78,20 +79,30 @@ export class Terrain extends Level {
         key: 'Bush',
         material: new THREE.MeshStandardMaterial({ color: 0xc46200, flatShading: true, envMapIntensity: 0.05, roughness: 1 }),
       },
+      // {
+      //   key: 'Sphere',
+      //   material: new THREE.MeshStandardMaterial({
+      //     map: moonTex,
+      //     emissive: 0xf5e38a,
+      //     emissiveIntensity: 3,
+      //     emissiveMap: moonEmissive,
+      //   }),
+      // },
+    ]);
+
+    const moon = await loadModelHelper('/src/Levels/Terrain/assets/moon.gltf', 1, false);
+    const moonLight = new THREE.PointLight(moonColor.convertSRGBToLinear(), 0.1, 200);
+
+    this.meshManager.setMaterials([
       {
         key: 'Sphere',
-        material: new THREE.MeshStandardMaterial({
-          map: moonTex,
-          toneMapped: false,
-          emissive: 0xf5e38a,
-          emissiveIntensity: 3,
-          emissiveMap: moonEmissive,
+        material: new THREE.MeshPhysicalMaterial({
+          ...moon.children[0].material,
+          ...betterMaterial,
         }),
       },
     ]);
 
-    const moon = await loadModelHelper('/src/Levels/Terrain/assets/moon.glb', 1, false);
-    const moonLight = new THREE.PointLight(moonColor.convertSRGBToLinear(), 0.1, 200);
     moonLight.add(moon);
     moonLight.position.set(-40, 0, 0);
     moonLight.castShadow = true;
@@ -99,6 +110,7 @@ export class Terrain extends Level {
     moonLight.shadow.camera.near = 10;
     moonLight.shadow.camera.far = 500;
     this.meshManager.overrideSceneMeshMaterial(moon);
+    console.log(moon);
     this.centerPivot.add(moonLight);
     this.ambient = new THREE.AmbientLight(0xffffff, 0.05);
 
@@ -145,9 +157,12 @@ export class Terrain extends Level {
     const speed = 4;
     const increment = speed * (time / 10000);
 
-    this.ambient.intensity = clamp(0, 1, oscilate(increment + 1, -1, 1)) * 0.08;
-    this.centerPivot.rotation.z = wrap(increment / 4, 0, 1) * Math.PI * 2;
-    this.scene.background = new THREE.Color().lerpColors(NIGHT_COLOR, DAY_COLOR, clamp(0, 1, oscilate(increment + 1, -1, 1)));
+    this.centerPivot.rotation.z = Math.PI;
+    this.scene.background = NIGHT_COLOR;
+
+    //this.ambient.intensity = clamp(0, 1, oscilate(increment + 1, -1, 1)) * 0.08;
+    //this.centerPivot.rotation.z = wrap(increment / 4, 0, 1) * Math.PI * 2;
+    //this.scene.background = new THREE.Color().lerpColors(NIGHT_COLOR, DAY_COLOR, clamp(0, 1, oscilate(increment + 1, -1, 1)));
   }
 
   destroy(): void {
