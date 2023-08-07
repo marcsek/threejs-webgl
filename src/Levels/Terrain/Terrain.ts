@@ -6,6 +6,7 @@ import { MeshManager } from './MeshManager';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clamp, oscilate, wrap } from '../../MathUtils';
+import { ModelGroup } from './ModelGroup';
 
 const MESH_SIZE = 64;
 const MAX_HEIGHT = 10 ** 1.25;
@@ -61,12 +62,7 @@ export class Terrain extends Level {
     const dirt = textureLoader.load('/src/Levels/Terrain/assets/dirt.png');
     const dirt2 = textureLoader.load('/src/Levels/Terrain/assets/dirt2.jpg');
     const water = textureLoader.load('/src/Levels/Terrain/assets/water.jpg');
-    const moonTex = textureLoader.load('/src/Levels/Terrain/assets/MoonPls.png');
-    const moonEmissive = textureLoader.load('/src/Levels/Terrain/assets/MoonEmissive.png');
-    moonEmissive.flipY = false;
-    moonTex.flipY = false;
 
-    const betterMaterial: THREE.MeshStandardMaterialParameters = { toneMapped: false };
     this.meshManager.setMaterials([
       { key: 'stone', material: new THREE.MeshStandardMaterial({ map: stone, flatShading: true, envMapIntensity: 0.05 }) },
       { key: 'sand', material: new THREE.MeshStandardMaterial({ map: sand, flatShading: true, envMapIntensity: 0.05 }) },
@@ -79,38 +75,21 @@ export class Terrain extends Level {
         key: 'Bush',
         material: new THREE.MeshStandardMaterial({ color: 0xc46200, flatShading: true, envMapIntensity: 0.05, roughness: 1 }),
       },
-      // {
-      //   key: 'Sphere',
-      //   material: new THREE.MeshStandardMaterial({
-      //     map: moonTex,
-      //     emissive: 0xf5e38a,
-      //     emissiveIntensity: 3,
-      //     emissiveMap: moonEmissive,
-      //   }),
-      // },
     ]);
 
-    const moon = await loadModelHelper('/src/Levels/Terrain/assets/moon.gltf', 1, false);
+    const moon = await new ModelGroup().load('src/Levels/Terrain/assets/moon.gltf');
+
+    moon.setMaterial(prev => new THREE.MeshPhysicalMaterial({ ...prev, toneMapped: false, emissiveIntensity: 1.5 }));
+
     const moonLight = new THREE.PointLight(moonColor.convertSRGBToLinear(), 0.1, 200);
 
-    this.meshManager.setMaterials([
-      {
-        key: 'Sphere',
-        material: new THREE.MeshPhysicalMaterial({
-          ...moon.children[0].material,
-          ...betterMaterial,
-        }),
-      },
-    ]);
-
-    moonLight.add(moon);
+    moonLight.add(moon.model);
     moonLight.position.set(-40, 0, 0);
     moonLight.castShadow = true;
     moonLight.shadow.mapSize = new THREE.Vector2(1024, 1024);
     moonLight.shadow.camera.near = 10;
     moonLight.shadow.camera.far = 500;
-    this.meshManager.overrideSceneMeshMaterial(moon);
-    console.log(moon);
+
     this.centerPivot.add(moonLight);
     this.ambient = new THREE.AmbientLight(0xffffff, 0.05);
 
@@ -119,8 +98,15 @@ export class Terrain extends Level {
     const treeParadigm = await loadModelHelper('/src/Levels/Terrain/assets/strom.glb', 0.35, true);
     this.meshManager.overrideSceneMeshMaterial(treeParadigm);
 
-    const bushParadigm = await loadModelHelper('/src/Levels/Terrain/assets/krik.glb', 0.35, true);
-    this.meshManager.overrideSceneMeshMaterial(bushParadigm);
+    const bushParadigm = await new ModelGroup().load('src/Levels/Terrain/assets/krik.glb');
+    bushParadigm.model.scale.set(0.35, 0.35, 0.35);
+    bushParadigm.modifyMeshAtt(mesh => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    });
+    bushParadigm.setMaterial(
+      () => new THREE.MeshPhysicalMaterial({ color: 0xfcaa79, flatShading: true, envMapIntensity: 0.05, roughness: 1 })
+    );
 
     const waterGeo = new THREE.CylinderGeometry(MESH_SIZE / 2 + 1, MESH_SIZE / 2 + 1, MAX_HEIGHT * 0.1, 50);
     const waterMat = new THREE.MeshPhysicalMaterial({
@@ -140,7 +126,7 @@ export class Terrain extends Level {
     waterMesh.position.set(0, MAX_HEIGHT * 0.05, 0);
     waterMesh.receiveShadow = true;
 
-    generateWorld(treeParadigm, bushParadigm, this.meshManager, this.scene);
+    generateWorld(treeParadigm, bushParadigm.model, this.meshManager, this.scene);
 
     const meshes = this.meshManager.generateMeshes(mesh => {
       mesh.castShadow = true;
@@ -148,8 +134,7 @@ export class Terrain extends Level {
     });
 
     this.scene.environment = envMap;
-    this.scene.add(...meshes);
-    this.scene.add(waterMesh);
+    this.scene.add(...meshes, waterMesh);
     this.scene.background = new THREE.Color('#d1b26b');
   }
 
@@ -157,12 +142,12 @@ export class Terrain extends Level {
     const speed = 4;
     const increment = speed * (time / 10000);
 
-    this.centerPivot.rotation.z = Math.PI;
-    this.scene.background = NIGHT_COLOR;
+    //    this.centerPivot.rotation.z = Math.PI;
+    //  this.scene.background = NIGHT_COLOR;
 
-    //this.ambient.intensity = clamp(0, 1, oscilate(increment + 1, -1, 1)) * 0.08;
-    //this.centerPivot.rotation.z = wrap(increment / 4, 0, 1) * Math.PI * 2;
-    //this.scene.background = new THREE.Color().lerpColors(NIGHT_COLOR, DAY_COLOR, clamp(0, 1, oscilate(increment + 1, -1, 1)));
+    this.ambient.intensity = clamp(0, 1, oscilate(increment + 1, -1, 1)) * 0.08;
+    this.centerPivot.rotation.z = wrap(increment / 4, 0, 1) * Math.PI * 2;
+    this.scene.background = new THREE.Color().lerpColors(NIGHT_COLOR, DAY_COLOR, clamp(0, 1, oscilate(increment + 1, -1, 1)));
   }
 
   destroy(): void {
